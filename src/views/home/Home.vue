@@ -15,6 +15,7 @@
               >
                 <input
                   type="text"
+                  v-model="searchValue"
                   class="form-control border-0 py-3 px-4"
                   placeholder="Search your favorite foods..."
                 />
@@ -58,12 +59,15 @@
               data-bs-toggle="dropdown"
             >
               <i class="bi bi-sort-down"></i>
-              <span class="fs-7">SORT OPTION</span>
+              <span class="fs-7">{{ selectedSortOption }}</span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow-sm rounded-3">
-              <li>
-                <button class="dropdown-item py-2 px-3 d-flex align-items-center gap-2">
-                  <span class="fs-7 px-3 mx-1">SORT</span>
+              <li v-for="(sort, index) in SORT_OPTIONS" :key="index">
+                <button
+                  class="dropdown-item py-2 px-3 d-flex align-items-center gap-2"
+                  @click="updateSelectedSortOption(sort)"
+                >
+                  <span class="fs-7 px-1 mx-1">{{ sort }}</span>
                 </button>
               </li>
             </ul>
@@ -78,8 +82,9 @@
         </div>
       </div>
       <div v-else>
-        <div class="row" v-if="filteredItems.length && filteredItems.length > 0">
+        <div class="row">
           <MenuItemCard
+            v-if="filteredItems.length && filteredItems.length > 0"
             v-for="(item, index) in filteredItems"
             :key="item.id"
             class="list-item col-12 col-md-6 col-lg-4 pb-4"
@@ -106,18 +111,29 @@ import { APP_ROUTE_NAMES } from '@/constants/routeNames'
 import { CONFIG_IMAGE_URL } from '@/constants/config'
 import { useSwal } from '@/composables/swal'
 import { useRouter } from 'vue-router'
-import { CATEGROIES } from '@/constants/constants'
+import {
+  CATEGROIES,
+  SORT_NAME_A_Z,
+  SORT_NAME_Z_A,
+  SORT_OPTIONS,
+  SORT_PRICE_HIGH_LOW,
+  SORT_PRICE_LOW_HIGH,
+} from '@/constants/constants'
 const { showConfirm, showError, showSuccess } = useSwal()
-let menuItems = reactive([])
+const menuItems = reactive([])
 const loading = ref(false)
 const selectedCategory = ref('ALL')
+const selectedSortOption = ref(SORT_OPTIONS[0])
+const searchValue = ref('')
 const router = useRouter()
-const categoryList = ref(['ALL', ...CATEGROIES])
+const categoryList = reactive(['ALL', ...CATEGROIES])
 
 function updateSelectedCategory(category) {
   selectedCategory.value = category
 }
-
+function updateSelectedSortOption(sort) {
+  selectedSortOption.value = sort
+}
 const filteredItems = computed(() => {
   let tempArray =
     selectedCategory.value == 'ALL'
@@ -125,6 +141,25 @@ const filteredItems = computed(() => {
       : menuItems.filter(
           (item) => item.category.toUpperCase() === selectedCategory.value.toUpperCase(),
         )
+
+  if (searchValue.value) {
+    tempArray = tempArray.filter((item) =>
+      item.name.toUpperCase().includes(searchValue.value.toUpperCase()),
+    )
+  }
+
+  if (selectedSortOption.value == SORT_NAME_A_Z) {
+    tempArray.sort((a, b) => a.name.localeCompare(b.name))
+  }
+  if (selectedSortOption.value == SORT_NAME_Z_A) {
+    tempArray.sort((a, b) => b.name.localeCompare(a.name))
+  }
+  if (selectedSortOption.value == SORT_PRICE_LOW_HIGH) {
+    tempArray.sort((a, b) => a.price - b.price)
+  }
+  if (selectedSortOption.value == SORT_PRICE_HIGH_LOW) {
+    tempArray.sort((a, b) => b.price - a.price)
+  }
 
   return tempArray
 })
