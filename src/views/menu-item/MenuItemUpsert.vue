@@ -14,9 +14,10 @@
             type="submit"
             form="menuForm"
             class="btn btn-success btn-sm gap-2 rounded-1 px-4 py-2"
+            :disabled="isProcessing"
           >
-            <span class="spinner-border spinner-border-sm me-2"></span>
-            Create Item
+            <span v-if="isProcessing" class="spinner-border spinner-border-sm me-2"></span>
+            {{ menuItemIdForUpdate ? 'Update' : 'Create' }} Item
           </button>
 
           <button
@@ -94,8 +95,12 @@
           <div class="col-lg-5">
             <div>
               <img
-                v-if="newUploadedImage_base64 != ''"
-                :src="newUploadedImage_base64 != '' ? newUploadedImage_base64 : menuItemObj.image"
+                v-if="menuItemIdForUpdate > 0 || newUploadedImage_base64 != ''"
+                :src="
+                  newUploadedImage_base64 != ''
+                    ? newUploadedImage_base64
+                    : CONFIG_IMAGE_URL + menuItemObj.image
+                "
                 class="img-fluid w-100 mb-3 rounded"
                 style="aspect-ratio: 1/1; object-fit: cover"
               />
@@ -124,12 +129,15 @@ import { useRouter, useRoute } from 'vue-router'
 import { APP_ROUTE_NAMES } from '@/constants/routeNames'
 import { CONFIG_IMAGE_URL } from '@/constants/config'
 import { CATEGROIES } from '@/constants/constants'
+import menuitemService from '@/services/menuItemService'
+const router = new useRouter()
+const route = new useRoute()
 const loading = ref(false)
 const isProcessing = ref(false)
 const errorList = reactive([])
 const newUploadedImage = ref(null)
 const newUploadedImage_base64 = ref('')
-
+const menuItemIdForUpdate = route.params.id
 const menuItemObj = reactive({
   name: '',
   description: '',
@@ -139,8 +147,19 @@ const menuItemObj = reactive({
   image: '',
 })
 const formData = new FormData()
-const router = new useRouter()
-const route = new useRoute()
+
+onMounted(async () => {
+  if (!menuItemIdForUpdate) return
+  loading.value = true
+  try {
+    const result = await menuitemService.getMenuItemById(menuItemIdForUpdate)
+    Object.assign(menuItemObj, result)
+  } catch (err) {
+    console.log('Error while fetching menu item', err)
+  } finally {
+    loading.value = false
+  }
+})
 
 const handleFileChange = (event) => {
   isProcessing.value = true
@@ -175,13 +194,40 @@ const onFormSubmit = async (event) => {
     // add to formdata
     formData.append('File', newUploadedImage.value)
   } else {
-    errorList.push('Image must be uploaded.')
+    if (menuItemIdForUpdate == 0) {
+      errorList.push('Image must be uploaded.')
+    }
   }
   if (!errorList.length) {
     //no errors
     Object.entries(menuItemObj).forEach(([key, value]) => {
       formData.append(key, value)
     })
+
+    if (menuItemIdForUpdate == 0 || menuItemIdForUpdate == undefined) {
+      menuitemService
+        .createMenuItem(formData)
+        .then(() => {
+          alert('menu item created')
+          router.push({ name: APP_ROUTE_NAMES.MENU_ITEM_LIST })
+        })
+        .catch((err) => {
+          isProcessing.value = false
+          console.log('Create Failed', err)
+        })
+    } else {
+      //update
+      menuitemService
+        .updateMenuItem(menuItemIdForUpdate, formData)
+        .then(() => {
+          alert('menu item updated')
+          router.push({ name: APP_ROUTE_NAMES.MENU_ITEM_LIST })
+        })
+        .catch((err) => {
+          isProcessing.value = false
+          console.log('update Failed', err)
+        })
+    }
     console.log(menuItemObj)
   }
   isProcessing.value = false
