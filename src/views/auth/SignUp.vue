@@ -59,7 +59,9 @@
 <script setup>
 import { ROLES } from '@/constants/constants'
 import { APP_ROUTE_NAMES } from '@/constants/routeNames'
+import { useAuthStore } from '@/stores/authStore'
 import { reactive, ref } from 'vue'
+const authStore = useAuthStore()
 const formObj = reactive({
   name: '',
   email: '',
@@ -90,6 +92,17 @@ const onSignUpSubmit = async () => {
   }
 
   try {
+    const response = await authStore.signUp(formObj)
+    console.log(response)
+    if (response.success) {
+      console.log('success')
+    } else {
+      if (response.message !== undefined) {
+        response.message.split('--').forEach((error) => {
+          errorList.push(error)
+        })
+      }
+    }
   } catch (err) {
     errorList.push(err)
   } finally {
