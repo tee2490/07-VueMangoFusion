@@ -51,22 +51,28 @@
 
         <!-- Cart Controls -->
         <div class="d-flex align-items-center justify-content-between">
-          <button class="btn btn-success w-100 rounded py-2">
-            <span class="spinner-border spinner-border-sm me-2"></span>
+          <button
+            class="btn btn-success w-100 rounded py-2"
+            @click="addToCart"
+            :disabled="isProcessing"
+            v-if="!isInCart"
+          >
+            <span v-if="isProcessing" class="spinner-border spinner-border-sm me-2"></span>
             <span class="small"><i class="bi bi-cart-plus"></i> &nbsp; Add to Cart</span>
           </button>
 
-          <div class="input-group input-group-sm w-100" v-show="false">
-            <button class="btn btn-outline-secondary" type="button">
+          <div class="input-group input-group-sm w-100" v-else>
+            <button class="btn btn-outline-secondary" type="button" @click="decreaseQuantity">
               <i class="bi bi-dash"></i>
             </button>
             <input
               type="text"
               class="form-control text-center px-2"
               readonly
+              :value="itemQuantity"
               style="max-width: 50px"
             />
-            <button class="btn btn-outline-secondary" type="button">
+            <button class="btn btn-outline-secondary" type="button" @click="increaseQuantity">
               <i class="bi bi-plus"></i>
             </button>
           </div>
@@ -77,8 +83,35 @@
 </template>
 <script setup>
 import { CONFIG_IMAGE_URL } from '@/constants/config'
+import { useCartStore } from '@/stores/cartStore'
+import { computed, ref } from 'vue'
+const cartStore = useCartStore()
+const isProcessing = ref(false)
 const emit = defineEmits(['showDetails'])
 const props = defineProps({
   menuItem: Object,
 })
+
+const cartItem = computed(() => cartStore.cartItems.find((item) => item.id === props.menuItem.id))
+const isInCart = computed(() => !!cartItem.value)
+const itemQuantity = computed(() => cartItem.value?.quantity || 0)
+
+const addToCart = () => {
+  isProcessing.value = true
+  setTimeout(() => {
+    cartStore.addToCart(props.menuItem)
+    isProcessing.value = false
+  }, 300)
+}
+
+const increaseQuantity = () => {
+  cartStore.updateQuantity(props.menuItem.id, itemQuantity.value + 1)
+}
+const decreaseQuantity = () => {
+  if (itemQuantity.value > 1) {
+    cartStore.updateQuantity(props.menuItem.id, itemQuantity.value - 1)
+  } else {
+    cartStore.removeFromCart(props.menuItem.id)
+  }
+}
 </script>

@@ -1,11 +1,11 @@
 <template>
   <div>
     <div class="position-relative overflow-hidden mb-4">
-      <div class="hero-section position-relative py-5 rounded-4" style="min-height: 400px">
+      <div class="hero-section position-relative py-4 rounded-4" style="min-height: 100px">
         <div class="container position-relative z-3">
           <div class="row justify-content-center text-center">
             <div class="col-lg-8 col-xl-7">
-              <h1 class="display-4 fw-bold text-white mb-4">
+              <h1 class="display-6 fw-bold text-white mb-4">
                 Unlock the Art of Flavor<br class="d-none d-lg-block" />
                 <span class="text-success-emphasis">Your Culinary Journey Begins Here!</span>
               </h1>
