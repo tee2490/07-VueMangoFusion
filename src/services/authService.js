@@ -6,7 +6,7 @@ export default {
       const response = await api.post('/auth/register', {
         email: userData.email,
         password: userData.password,
-        name: userData.name,
+        name: userData.fullname,
         role: userData.role,
       })
       console.log('Response', response.data)
