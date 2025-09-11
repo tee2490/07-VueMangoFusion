@@ -7,17 +7,16 @@
       <div class="row">
         <div class="col-md-4 mb-3">
           <label class="form-label">Filter by Status</label>
-          <select class="form-select">
+          <select v-model="statusFilter" class="form-select">
             <option value="">All Status</option>
-            <option value="Confirmed">Confirmed</option>
-            <option value="Ready for Pickup">Ready for Pickup</option>
-            <option value="Completed">Completed</option>
-            <option value="Cancelled">Cancelled</option>
+            <option v-for="status in ORDER_STATUS" :key="status" :value="status">
+              {{ status }}
+            </option>
           </select>
         </div>
         <div class="col-md-4 mb-3">
           <label class="form-label">Sort By</label>
-          <select class="form-select">
+          <select v-model="sortBy" class="form-select">
             <option value="orderHeaderId">Order ID</option>
             <option value="orderTotal">Total Amount</option>
             <option value="pickUpName">Customer Name</option>
@@ -25,7 +24,7 @@
         </div>
         <div class="col-md-4 mb-3">
           <label class="form-label">Sort Direction</label>
-          <select class="form-select">
+          <select v-model="sortDirection" class="form-select">
             <option value="asc">Ascending</option>
             <option value="desc">Descending</option>
           </select>
@@ -34,56 +33,84 @@
       <div class="row mt-2">
         <div class="col-md-8 mb-3">
           <label class="form-label">Search</label>
-          <input type="text" class="form-control" placeholder="Search by name, email or phone" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            class="form-control"
+            placeholder="Search by name, email or phone"
+          />
         </div>
         <div class="col-md-4 mb-3 d-flex align-items-end">
-          <button class="btn btn-outline-secondary w-100">Reset Filters</button>
+          <button class="btn btn-outline-secondary w-100" @click="resetFilters">
+            Reset Filters
+          </button>
         </div>
       </div>
     </div>
 
-    <div class="text-center py-4 fs-5 text-body-secondary">Loading orders...</div>
-    <div class="text-center py-5 card border-0 shadow-sm">
+    <div class="text-center py-4 fs-5 text-body-secondary" v-if="loading">Loading orders...</div>
+    <div class="text-center py-5 card border-0 shadow-sm" v-else-if="filteredOrders.length === 0">
       <p class="mb-0">No orders found matching your criteria.</p>
     </div>
-    <div>
+    <div v-else>
       <div class="mb-3">
-        <span class="badge bg-success">XX orders found</span>
+        <span class="badge bg-success">{{ filteredOrders.length }} orders found</span>
       </div>
       <div class="table-responsive card border-0 shadow-sm">
         <table class="table table-hover mb-0">
           <thead>
             <tr>
-              <th class="cursor-pointer">
+              <th style="cursor: pointer" @click="updateSort('orderHeaderId')">
                 Order ID
-                <span class="ms-1"> ↑↓ </span>
+                <span class="ms-1" v-if="sortBy === 'orderHeaderId'">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
               </th>
-              <th class="cursor-pointer">
-                Customer
-                <span class="ms-1"> ↑↓ </span>
+              <th style="cursor: pointer" @click="updateSort('pickUpName')">
+                Pick Up Name
+                <span class="ms-1" v-if="sortBy === 'pickUpName'">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
               </th>
               <th>Contact</th>
               <th>Number of Items</th>
-              <th class="cursor-pointer">
+              <th style="cursor: pointer" @click="updateSort('orderTotal')">
                 Total
-                <span class="ms-1"> ↑↓ </span>
+                <span class="ms-1" v-if="sortBy === 'orderTotal'">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
               </th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>#ID</td>
-              <td>NAME</td>
+            <tr v-for="order in filteredOrders" :key="order.orderHeaderId">
+              <td>#{{ order.orderHeaderId }}</td>
+              <td>{{ order.pickUpName }}</td>
               <td>
-                <div>PHONE</div>
-                <div class="text-body-secondary small">EMAIL</div>
+                <div>{{ order.pickUpPhoneNumber }}</div>
+                <div class="text-body-secondary small">{{ order.pickUpEmail }}</div>
               </td>
-              <td>$$$</td>
-              <td>Count of Items</td>
+
+              <td>{{ order.totalItem }}</td>
+              <td>{{ order.orderTotal }}</td>
               <td>
-                <div class="badge rounded-pill">STATUS</div>
+                <div
+                  class="badge rounded-pill"
+                  :class="{
+                    'bg-warning-subtle text-warning-emphasis':
+                      order.status === ORDER_STATUS_CONFIRMED,
+                    'bg-info-subtle text-info-emphasis':
+                      order.status === ORDER_STATUS_READY_FOR_PICKUP,
+                    'bg-success-subtle text-success-emphasis':
+                      order.status === ORDER_STATUS_COMPLETED,
+                    'bg-danger-subtle text-danger-emphasis':
+                      order.status === ORDER_STATUS_CANCELLED,
+                  }"
+                >
+                  {{ order.status }}
+                </div>
               </td>
               <td>
                 <button class="btn btn-sm btn-success">
@@ -143,3 +170,101 @@
     <!-- Order Details Modal Component -->
   </div>
 </template>
+
+<script setup>
+import { ref, onMounted, computed, reactive } from 'vue'
+import orderService from '@/services/orderService'
+import { APP_ROUTE_NAMES } from '@/constants/routeNames'
+import {
+  ORDER_STATUS,
+  ORDER_STATUS_CANCELLED,
+  ORDER_STATUS_COMPLETED,
+  ORDER_STATUS_CONFIRMED,
+  ORDER_STATUS_READY_FOR_PICKUP,
+} from '@/constants/constants'
+
+const orders = reactive([])
+const loading = ref(false)
+
+//filter and sorting
+const statusFilter = ref('')
+const searchQuery = ref('')
+const sortBy = ref('orderHeaderId')
+const sortDirection = ref('desc')
+
+//pagination
+const itemsPerPage = 5
+const currentPage = ref(1)
+
+const resetFilters = () => {
+  statusFilter.value = ''
+  searchQuery.value = ''
+  sortBy.value = 'orderHeaderId'
+  sortDirection.value = 'desc'
+  currentPage.value = 1
+}
+
+const updateSort = (field) => {
+  if (sortBy.value == field) {
+    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortBy.value = field
+    sortDirection.value = 'asc'
+  }
+}
+
+const filteredOrders = computed(() => {
+  let result = [...orders]
+  if (statusFilter.value) {
+    result = result.filter(
+      (order) => order.status.toUpperCase() === statusFilter.value.toUpperCase(),
+    )
+  }
+
+  if (searchQuery.value) {
+    const query = searchQuery.value.toUpperCase()
+    result = result.filter(
+      (order) =>
+        order.pickUpEmail.toUpperCase().includes(query) ||
+        order.pickUpName.toUpperCase().includes(query) ||
+        order.pickUpPhoneNumber.toUpperCase().includes(query),
+    )
+  }
+
+  //apply sorting logic
+
+  result.sort((a, b) => {
+    let aValue = a[sortBy.value]
+    let bValue = b[sortBy.value]
+
+    if (typeof aValue == 'string') {
+      aValue = aValue.toLowerCase()
+      bValue = bValue.toLowerCase()
+    }
+
+    if (sortDirection.value == 'asc') {
+      return aValue > bValue ? 1 : -1
+    } else {
+      return aValue < bValue ? 1 : -1
+    }
+  })
+
+  return result
+})
+
+const fetchOrders = async () => {
+  orders.length = 0
+  loading.value = true
+  try {
+    var result = await orderService.getOrders()
+    orders.push(...result)
+    console.log(orders)
+  } catch (error) {
+    console.log('Error fetch orders:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchOrders)
+</script>
