@@ -139,7 +139,14 @@
               <div
                 class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2 mb-3"
               >
-                <button class="btn btn-success flex-fill">
+                <button
+                  :class="[
+                    'btn btn-success flex-fill',
+                    order.status === ORDER_STATUS_CONFIRMED ? 'active' : '',
+                    isStatusDisabled(ORDER_STATUS_COMPLETED) ? 'opacity-50' : '',
+                  ]"
+                  :disabled="isStatusDisabled(ORDER_STATUS_CONFIRMED)"
+                >
                   <i class="bi bi-clock me-1"></i>
                   <span class="small">Confirmed</span>
                 </button>
@@ -148,7 +155,15 @@
                   <i class="bi bi-arrow-right"></i>
                 </div>
 
-                <button class="btn btn-success flex-fill">
+                <button
+                  :class="[
+                    'btn btn-success flex-fill',
+                    order.status === ORDER_STATUS_READY_FOR_PICKUP ? 'active' : '',
+                    isStatusDisabled(ORDER_STATUS_READY_FOR_PICKUP) ? 'opacity-50' : '',
+                  ]"
+                  @click="updateStatus(ORDER_STATUS_READY_FOR_PICKUP)"
+                  :disabled="isStatusDisabled(ORDER_STATUS_READY_FOR_PICKUP)"
+                >
                   <i class="bi bi-gear me-1"></i>
                   <span class="small">Ready for Pickup</span>
                 </button>
@@ -157,14 +172,26 @@
                   <i class="bi bi-arrow-right"></i>
                 </div>
 
-                <button class="'btn btn-success flex-fill',">
+                <button
+                  :class="[
+                    'btn btn-success flex-fill',
+                    order.status === ORDER_STATUS_COMPLETED ? 'active' : '',
+                    isStatusDisabled(ORDER_STATUS_COMPLETED) ? 'opacity-50' : '',
+                  ]"
+                  @click="updateStatus(ORDER_STATUS_COMPLETED)"
+                  :disabled="isStatusDisabled(ORDER_STATUS_COMPLETED)"
+                >
                   <i class="bi bi-check-circle me-1"></i>
                   <span class="small">Completed</span>
                 </button>
               </div>
 
               <!-- Cancel Button -->
-              <button class="btn btn-outline-danger w-100">
+              <button
+                class="btn btn-outline-danger w-100"
+                @click="updateStatus(ORDER_STATUS_CANCELLED)"
+                :disabled="isStatusDisabled(ORDER_STATUS_CANCELLED)"
+              >
                 <i class="bi bi-x-circle me-1"></i>
                 <span class="small">Cancel Order</span>
               </button>
@@ -185,7 +212,9 @@ import {
   ORDER_STATUS_CONFIRMED,
   ORDER_STATUS_READY_FOR_PICKUP,
 } from '@/constants/constants'
-
+import orderService from '@/services/orderService'
+import { useSwal } from '@/composables/swal'
+const { showSuccess } = useSwal()
 const props = defineProps({
   order: {
     type: Object,
@@ -203,7 +232,7 @@ const props = defineProps({
     }),
   },
 })
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'status-updated'])
 const closeModal = () => {
   emit('close')
 }
@@ -219,5 +248,51 @@ const formatDate = (dateString) => {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+const updateStatus = async (newStatus) => {
+  try {
+    await orderService.updateOrder(props.order.orderHeaderId, {
+      orderHeaderId: props.order.orderHeaderId,
+      status: newStatus,
+    })
+
+    showSuccess('Order updated successfully')
+    closeModal()
+    emit('status-updated')
+  } catch (error) {
+    console.error('Error updating status', error)
+  }
+}
+
+const isStatusDisabled = (status) => {
+  const statusOrder = [
+    ORDER_STATUS_CONFIRMED,
+    ORDER_STATUS_READY_FOR_PICKUP,
+    ORDER_STATUS_COMPLETED,
+    ORDER_STATUS_CANCELLED,
+  ]
+
+  const currentIndex = statusOrder.indexOf(props.order.status)
+  const targetIndex = statusOrder.indexOf(status)
+
+  if (targetIndex <= currentIndex) {
+    return true
+  }
+
+  // Can't skip from Confirmed directly to Completed
+  if (props.order.status === ORDER_STATUS_CONFIRMED && status === ORDER_STATUS_COMPLETED) {
+    return true
+  }
+
+  //cannot cancel a completed order
+  if (props.order.status === ORDER_STATUS_COMPLETED && status === ORDER_STATUS_CANCELLED) {
+    return true
+  }
+  if (props.order.status === ORDER_STATUS_CANCELLED && status === ORDER_STATUS_CANCELLED) {
+    return true
+  }
+
+  return false
 }
 </script>
