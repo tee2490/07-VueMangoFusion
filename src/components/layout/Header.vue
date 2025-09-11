@@ -102,7 +102,7 @@
             </button>
           </li>
 
-          <li class="nav-item dropdown">
+           <li class="nav-item dropdown" v-if="authStore.isAdmin">
             <a
               class="nav-link dropdown-toggle"
               href="#"
