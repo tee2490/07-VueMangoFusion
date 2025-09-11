@@ -3,10 +3,15 @@
     <small class="text-secondary me-2" v-if="!readonly">Rate this item:</small>
     <div class="d-flex">
       <div v-for="star in 5" :key="star" class="star-rating me-1" @click="onRatingUpdate(star)">
-        <i class="bi-star text-warning" width="16"></i>
+        <i
+          :class="rating && rating >= star ? 'bi-star-fill' : 'bi-star'"
+          class="text-warning"
+          width="16"
+        ></i>
       </div>
     </div>
 
+    <div v-if="rating" class="ms-2 text-secondary small">({{ rating }})</div>
     <div
       v-if="isProcessing"
       class="spinner-border spinner-border-sm text-warning ms-2"
@@ -30,6 +35,10 @@ const props = defineProps({
   itemId: {
     type: [Number],
     required: true,
+  },
+  rating: {
+    type: [Number],
+    default: 0,
   },
 })
 const onRatingUpdate = async (newRating) => {
