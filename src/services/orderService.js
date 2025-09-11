@@ -78,7 +78,7 @@ export default {
   async submitRating(orderDetailsId, rating) {
     try {
       const response = await api.put(`/OrderDetails/${orderDetailsId}`, {
-        orderDetailsId: orderDetailsId,
+         orderDetailId: orderDetailsId,
         rating: rating,
       })
 

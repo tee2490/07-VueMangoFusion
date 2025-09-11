@@ -26,7 +26,7 @@
     <div class="row g-4" v-else>
       <div class="col-md-6 col-lg-4" v-for="order in orders" :key="order.orderHeaderId">
         <!-- Order Card -->
-        <OrderListCard :order="order"></OrderListCard>
+        <OrderListCard :order="order" @rate="rateItem"></OrderListCard>
       </div>
     </div>
   </div>
@@ -58,4 +58,21 @@ const fetchOrders = async () => {
 }
 
 onMounted(fetchOrders)
+
+const rateItem = async (orderDetailId, rating) => {
+  try {
+    console.log('Order History', orderDetailId)
+    var result = await orderService.submitRating(orderDetailId, rating)
+
+    const orderDetail = orders
+      .flatMap((order) => order.orderDetails)
+      .find((detail) => detail.orderDetailId === orderDetailId)
+
+    if (orderDetail) {
+      orderDetail.rating = rating
+    }
+  } catch (error) {
+    console.log('Error rating item:', error)
+  }
+}
 </script>
